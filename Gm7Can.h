@@ -58,7 +58,7 @@ class Gm7Can {
     uint32_t lastRemoteHeartbeatMillis = millis();
 
     //Basic device information
-    uint16_t canDeviceType = 0x0000;
+    uint8_t canDeviceType = 0x00;
     uint16_t deviceUid16 = 0x0000;
     uint32_t deviceStatus = 0x00000000;
     uint16_t deviceProgress = 0x0000;
@@ -69,15 +69,10 @@ class Gm7Can {
 
     uint64_t deviceUid64 =  0x0000000000000000;
     uint32_t deviceTypeId = 0x00000000;
-    char * deviceModel = "GM7*****";
-    char * deviceShortName = "        ";
-    char * deviceVendor = "        ";
+    char deviceModel[CAN_PAYLOAD_MESSAGE_BYTES + 1];
+    char deviceShortName[CAN_PAYLOAD_MESSAGE_BYTES + 1];
+    char deviceVendor[CAN_PAYLOAD_MESSAGE_BYTES + 1];
 
-
-
-
-
-  
 
 
   public:
@@ -97,18 +92,10 @@ class Gm7Can {
     uint8_t canBufferStorageCountAvailable[2] = {0,0};
     CanBuffer canRxBufferStorage[2][CAN_BUFFER_STORAGE_MAX_SIZE];
 
-    enum CanDeviceType {
-      CONTROLLER = 1,
-      MODULE = 2,
-      PERIPHERAL = 3,
-      EXTERNAL_DEVICE = 4,
-      READ_ONLY = 5
-    };
-
     enum RegistrationStatus {
       UNREGISTERED = 0,
       REGISTRATION_PENDING = 1,
-      REGISTRATED = 2,
+      REGISTERED = 2,
       REGISTRAR = 3
     };
 
@@ -116,13 +103,11 @@ class Gm7Can {
     Gm7Can();
 
     void begin(
-        enum CanDeviceType providedCanDeviceType, 
-        uint16_t providedDeviceUid16, 
         uint64_t providedDeviceUid64,
-        uint32_t providecDeviceTypeId,
-        char * providedDeviceModel,
-        char * providedDeviceShortName,
-        char * providedDeviceVendor
+        uint16_t providedDeviceTypeId,
+        const char * providedDeviceModel,
+        const char * providedDeviceShortName,
+        const char * providedDeviceVendor
     );
     void initialize();
     void rxCan(CAN_message_t msg);

@@ -7,16 +7,18 @@ Gm7Can::Gm7Can()
 }
 
 void Gm7Can::begin(
-  enum CanDeviceType providedCanDeviceType, 
-  uint16_t providedDeviceUid16, 
   uint64_t providedDeviceUid64,
-  uint32_t providecDeviceTypeId,
-  char * providedDeviceModel,
-  char * providedDeviceShortName,
-  char * providedDeviceVendor){
-    canDeviceType = providedCanDeviceType;
-    deviceUid16 = providedDeviceUid16;
-    deviceTypeId = providecDeviceTypeId;
+  uint16_t providedDeviceTypeId,
+  const char * providedDeviceModel,
+  const char * providedDeviceShortName,
+  const char * providedDeviceVendor)
+  {
+    deviceTypeId = providedDeviceTypeId;
+    canDeviceType = canProtocol.extractCanDeviceTypeFromDeviceTypeId(deviceTypeId);
+    deviceUid16 = (uint16_t)providedDeviceUid64;
+    strlcpy(deviceModel, providedDeviceModel, getPayloadByteCount());
+    strlcpy(deviceShortName, providedDeviceShortName, getPayloadByteCount());
+    strlcpy(deviceVendor, providedDeviceVendor, getPayloadByteCount());
 
     //CAN BUS
     t4CanObject.begin();
@@ -69,17 +71,13 @@ void Gm7Can::prepareMessage(){
 
 
 void Gm7Can::sendHeartbeat(){
-  if(canDeviceType == Gm7Can::READ_ONLY){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
     return;
   }
   //Controllers and nodes send different heartbeat PMID's
-  uint16_t heartbeatDeviceType = 0;
-  if(canDeviceType == Gm7Can::CONTROLLER) { heartbeatDeviceType = canProtocol.HEARTBEAT_CONTROLLER; }
-  else if(canDeviceType == Gm7Can::MODULE) { heartbeatDeviceType = canProtocol.HEARTBEAT_NODE; }
-  else if(canDeviceType == Gm7Can::PERIPHERAL) { heartbeatDeviceType = canProtocol.HEARTBEAT_PERIPHERAL; }
-  else if(canDeviceType == Gm7Can::EXTERNAL_DEVICE) { heartbeatDeviceType = canProtocol.HEARTBEAT_EXTERNAL_DEVICE; }
-  else { 
-    return; 
+  uint16_t heartbeatDeviceType = canProtocol.getPmidHeartbeatForDeviceType(canDeviceType);
+  if(heartbeatDeviceType == 0){
+    return;
   }
   txMessage.id = canProtocol.encodeMessageId(heartbeatDeviceType, deviceUid16);
   canProtocol.encodeHeartbeat((char*)txMessage.buf, txMessage.len, millis(), lastHeartBeatMillis);
@@ -98,7 +96,7 @@ void Gm7Can::receiveRemoteHeartbeat(){
 
 
 void Gm7Can::sendDeviceInfo(){
-  if(canDeviceType == Gm7Can::READ_ONLY){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
     return;
   }
   //Use a buffer
@@ -123,15 +121,16 @@ void Gm7Can::sendDeviceInfo(){
 }
 
 
+
 void Gm7Can::updateDeviceRegistration(){
-  if(canDeviceType == CanDeviceType::READ_ONLY){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
     return;
   }
-  if(canDeviceType == CanDeviceType::CONTROLLER){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::CONTROLLER){
     currentRegistrationStatus = RegistrationStatus::REGISTRAR;
     return;
   }
-  if((getIsOnlineOverCan() == false) && ((currentRegistrationStatus == RegistrationStatus::REGISTRATION_PENDING) || (currentRegistrationStatus == RegistrationStatus::REGISTRATED))){
+  if((getIsOnlineOverCan() == false) && ((currentRegistrationStatus == RegistrationStatus::REGISTRATION_PENDING) || (currentRegistrationStatus == RegistrationStatus::REGISTERED))){
     currentRegistrationStatus = RegistrationStatus::UNREGISTERED;
     return;
   }
@@ -153,7 +152,7 @@ void Gm7Can::requestRegistration(){
 
 //Sends 2 uint32 integers over can to the whole bus in a single 8-byte message. The first 4 bytes are for the current time and the last 4 bytes are for the set time.
 void Gm7Can::sendTimerData(uint16_t pmid, uint32_t timerDataMillisCurrent, uint32_t timerDataMillisSet){
-  if(canDeviceType == Gm7Can::READ_ONLY){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
     return;
   }
   char payloadBuffer[CAN_PAYLOAD_MESSAGE_BYTES];
@@ -173,7 +172,7 @@ void Gm7Can::rxCan(CAN_message_t msg){
 }
 
 void Gm7Can::txCan(){
-  if(canDeviceType == Gm7Can::READ_ONLY){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
     return;
   }
   t4CanObject.write(txMessage);
@@ -182,7 +181,7 @@ void Gm7Can::txCan(){
 
 
 void Gm7Can::sendTxCanFromStorageBuffer(){
-  if(canDeviceType == Gm7Can::READ_ONLY){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
     return;
   }
   uint8_t batchLimit = 10; //To prevent spurious send requests that locks up the code
@@ -205,7 +204,7 @@ void Gm7Can::updateDeviceGameStatusAndProgress(uint32_t status, uint16_t progres
 
 
 void Gm7Can::sendStatusIfChanged() {
-  if(canDeviceType == Gm7Can::READ_ONLY){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
     return;
   }
   if ((deviceStatus == lastDeviceStatus)
@@ -213,13 +212,9 @@ void Gm7Can::sendStatusIfChanged() {
       && (deviceProgressMax == lastDeviceProgressMax)) {
     return;  //Nothing to update, so nothing to send.
   }
-  uint16_t statusDeviceType = 0;
-  if(canDeviceType == Gm7Can::CONTROLLER) { statusDeviceType = canProtocol.CONTROLLER_STATUS_AND_PROGRESS; }
-  else if(canDeviceType == Gm7Can::MODULE) { statusDeviceType = canProtocol.MODULE_STATUS_AND_PROGRESS; }
-  else if(canDeviceType == Gm7Can::PERIPHERAL) { statusDeviceType = canProtocol.PERIPHERAL_STATUS_AND_PROGRESS; }
-  else if(canDeviceType == Gm7Can::EXTERNAL_DEVICE) { statusDeviceType = canProtocol.EXTERNAL_DEVICE_STATUS_AND_PROGRESS; }
-  else { 
-    return; 
+  uint16_t statusDeviceType = canProtocol.getPmidGameStatusForDeviceType(canDeviceType);
+  if(statusDeviceType == 0){
+    return;
   }
 
   char payloadBuffer[CAN_PAYLOAD_MESSAGE_BYTES];
