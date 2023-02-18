@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "algorithm": "cpp",
+        "xutility": "cpp",
+        "xmemory": "cpp",
+        "cstdlib": "cpp",
+        "unordered_map": "cpp",
+        "initializer_list": "cpp",
+        "xhash": "cpp",
+        "cstdint": "cpp",
+        "utility": "cpp",
+        "*.tpp": "cpp"
+    }
+}

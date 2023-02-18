@@ -1,0 +1,33 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:\\Program Files (x86)\\Arduino\\hardware\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\teensy\\avr\\cores\\teensy",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\teensy\\avr\\cores\\teensy3",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\teensy\\avr\\cores\\teensy4",
+                "C:\\Program Files (x86)\\Arduino",
+                "C:/Program Files (x86)/Arduino/hardware/tools/arm/arm-none-eabi/include",
+                "C:/Program Files (x86)/Arduino/hardware/tools/arm/lib/gcc/arm-none-eabi/5.4.1/include",
+                "C:/Users/Isa/Documents/Arduino/libraries/Gm7CanProtocol",
+                "C:/Users/Isa/Documents/Arduino/libraries/Chrono",
+                "C:/Users/Isa/AppData/Local/Arduino15/packages/teensy/hardware/avr/1.57.2/libraries/FlexCAN_T4",
+                "C:/Program Files (x86)/Arduino/hardware/tools/arm/arm-none-eabi/include/c++/5.4.1/ext"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64",
+            "browse": {}
+        }
+    ],
+    "version": 4
+}
