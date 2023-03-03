@@ -16,6 +16,7 @@ void Gm7Can::begin(
     deviceTypeId = providedDeviceTypeId;
     canDeviceType = canProtocol.extractCanDeviceTypeFromDeviceTypeId(deviceTypeId);
     deviceUid16 = (uint16_t)providedDeviceUid64;
+    deviceUid64 = providedDeviceUid64;
     strlcpy(deviceModel, providedDeviceModel, getPayloadByteCount());
     strlcpy(deviceShortName, providedDeviceShortName, getPayloadByteCount());
     strlcpy(deviceVendor, providedDeviceVendor, getPayloadByteCount());
@@ -49,7 +50,7 @@ void Gm7Can::storeRxCanToStorageBuffer(const CAN_message_t msg) {
     return; //Heartbeats are only used for presence, so we don't need to store them in the storage buffer.
   }
 
-  writeToCanBufferStorage((uint8_t)CAN_BUFFER_STORAGE_INDEX_RX, messageId.pmid, (uint8_t *)msg.buf, msg.len);
+  writeToCanBufferStorage((uint8_t)CAN_BUFFER_STORAGE_INDEX_RX, messageId.uid, messageId.pmid, (uint8_t *)msg.buf, msg.len); //Make sure to also send over the UID of the remote device to the method, or it will try use an overload which implies the devices' own UID.
 }
 
 
@@ -145,7 +146,10 @@ void Gm7Can::requestRegistration(){
   if((deviceTypeId > canProtocol.DEVICE_TYPE_SECTION_START) && (deviceTypeId < canProtocol.DEVICE_TYPE_SECTION_END)){
     char payloadBuffer[CAN_PAYLOAD_MESSAGE_BYTES];
     canProtocol.encodeTypeIdToBuffer(payloadBuffer, min(CAN_PAYLOAD_MESSAGE_BYTES, txMessage.len), deviceTypeId);
-    writeToCanBufferStorage((uint8_t)CAN_BUFFER_STORAGE_INDEX_TX, deviceTypeId, payloadBuffer, min(CAN_PAYLOAD_MESSAGE_BYTES, txMessage.len));   
+    writeToCanBufferStorage((uint8_t)CAN_BUFFER_STORAGE_INDEX_TX, deviceTypeId, payloadBuffer, min(CAN_PAYLOAD_MESSAGE_BYTES, txMessage.len));
+    chronoDeviceUpdate.restart();
+    sendDeviceInfo();   
+    sendStatus();
   }
 }
 
@@ -160,6 +164,40 @@ void Gm7Can::sendTimerData(uint16_t pmid, uint32_t timerDataMillisCurrent, uint3
   canProtocol.addUint32ToBuffer(payloadBuffer, min(CAN_PAYLOAD_MESSAGE_BYTES, txMessage.len), timerDataMillisSet, 4); //Second timer (Set timer data)
   writeToCanBufferStorage(CAN_BUFFER_STORAGE_INDEX_TX, pmid, payloadBuffer, min(CAN_PAYLOAD_MESSAGE_BYTES, txMessage.len));  
 }
+
+void Gm7Can::sendMainTimer(uint32_t timerDataMillisCurrent, uint32_t timerDataMillisSet){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
+    return;
+  }
+  uint16_t pmid = canProtocol.getPmidMainTimerForDeviceType(canDeviceType);
+  if(pmid == 0){
+    return;
+  }
+  sendTimerData(pmid, timerDataMillisCurrent, timerDataMillisSet);  
+}
+
+void Gm7Can::sendValidationTimer(uint32_t timerDataMillisCurrent, uint32_t timerDataMillisSet){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
+    return;
+  }
+  uint16_t pmid = canProtocol.getPmidValidationTimerForDeviceType(canDeviceType);
+  if(pmid == 0){
+    return;
+  }
+  sendTimerData(pmid, timerDataMillisCurrent, timerDataMillisSet);    
+}
+
+void Gm7Can::sendInternalTimer(uint32_t timerDataMillisCurrent, uint32_t timerDataMillisSet){
+  if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
+    return;
+  }
+  uint16_t pmid = canProtocol.getPmidInternalTimerForDeviceType(canDeviceType);
+  if(pmid == 0){
+    return;
+  }
+  sendTimerData(pmid, timerDataMillisCurrent, timerDataMillisSet);    
+}
+
 
 
 void Gm7Can::rxCan(CAN_message_t msg){
@@ -203,26 +241,31 @@ void Gm7Can::updateDeviceGameStatusAndProgress(uint32_t status, uint16_t progres
 }
 
 
-void Gm7Can::sendStatusIfChanged() {
+
+void Gm7Can::sendStatus() {
   if(canDeviceType == Gm7CanProtocol::CanDeviceType::READ_ONLY){
     return;
-  }
-  if ((deviceStatus == lastDeviceStatus)
-      && (deviceProgress == lastDeviceProgress)
-      && (deviceProgressMax == lastDeviceProgressMax)) {
-    return;  //Nothing to update, so nothing to send.
   }
   uint16_t statusDeviceType = canProtocol.getPmidGameStatusForDeviceType(canDeviceType);
   if(statusDeviceType == 0){
     return;
   }
-
   char payloadBuffer[CAN_PAYLOAD_MESSAGE_BYTES];
   canProtocol.encodeModuleStatusAndProgress(payloadBuffer, min(CAN_PAYLOAD_MESSAGE_BYTES, txMessage.len), deviceStatus, deviceProgress, deviceProgressMax);
   writeToCanBufferStorage((uint8_t)CAN_BUFFER_STORAGE_INDEX_TX, statusDeviceType, payloadBuffer,  min(CAN_PAYLOAD_MESSAGE_BYTES, txMessage.len));
   lastDeviceStatus = deviceStatus;
   lastDeviceProgress = deviceProgress;
   lastDeviceProgressMax = deviceProgressMax;
+}
+
+
+void Gm7Can::sendStatusIfChanged() {
+  if ((deviceStatus == lastDeviceStatus)
+      && (deviceProgress == lastDeviceProgress)
+      && (deviceProgressMax == lastDeviceProgressMax)) {
+    return;  //Nothing to update, so nothing to send.
+  }
+  sendStatus();
 }
 
 void Gm7Can::goOnlineOverCan(){

@@ -126,7 +126,11 @@ class Gm7Can {
     void updateDeviceRegistration();
     void requestRegistration();
     void sendTimerData(uint16_t pmid, uint32_t timerDataMillisCurrent, uint32_t timerDataMillisSet);
+    void sendMainTimer(uint32_t timerDataMillisCurrent, uint32_t timerDataMillisSet);
+    void sendValidationTimer(uint32_t timerDataMillisCurrent, uint32_t timerDataMillisSet);
+    void sendInternalTimer(uint32_t timerDataMillisCurrent, uint32_t timerDataMillisSet);
     void updateDeviceGameStatusAndProgress(uint32_t status, uint16_t progress, uint16_t progressMax);
+    void sendStatus();
     void sendStatusIfChanged();
     void goOnlineOverCan();
     void goOfflineOverCan();
